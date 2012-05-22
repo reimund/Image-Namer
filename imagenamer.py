@@ -51,7 +51,7 @@ class ImageNamer:
 			if args['i'] == None:
 				print('No input directory specified, using current working directory.')
 			if args['d'] == None:
-				print('Number of digits not specified, using default value(3).')
+				print('Number of digits not specified, using default value(' + str(self.digits) + ').')
 			if args['i'] == None or args['d'] == None:
 				print(' ')
 
