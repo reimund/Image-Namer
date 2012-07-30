@@ -66,10 +66,14 @@ class ImageNamer:
 			# Associate each file with a string consisting of the date (in seconds)
 			# and the file size.
 			# Eg { my_img: 1337437445.0,11951550 }
-			files[f] = ''.join([
-				str(time.mktime(exif_get_struct_time(f))), ',',
-				str(os.path.getsize(f))
-			])
+			try:
+				files[f] = ''.join([
+					str(time.mktime(exif_get_struct_time(f))), ',',
+					str(os.path.getsize(f))
+				])
+			except KeyError or ValueError:
+				if self.verbose:
+					print(''.join([f, ': Error getting timestamp information. Skipping']))
 
 
 		for key, value in sorted(files.iteritems(), key=lambda (k,v): (v,k)):
@@ -157,19 +161,12 @@ def exif_get_struct_time(file):
 	f.close()
 
 	# Convert to string and split it.
-	try:
-		str = cPickle.dumps(tags['EXIF DateTimeOriginal']).split()
-		d = str[9][2:] #grabs the date
-		t = str[10][:-1] #grabs the time
-		
-		# Return the time as a struct_time, always assume tm_isdst=-1.
-		return time.strptime(d + ' ' + t, '%Y:%m:%d %H:%M:%S')
-
-	except KeyError: # Handles missing timestamps.
-		raise TimeError("missing")
-	except ValueError: # Handles malformed timestamps.
-		raise TimeError("malformed")
-
+	str = cPickle.dumps(tags['EXIF DateTimeOriginal']).split()
+	d = str[9][2:] #grabs the date
+	t = str[10][:-1] #grabs the time
+	
+	# Return the time as a struct_time, always assume tm_isdst=-1.
+	return time.strptime(d + ' ' + t, '%Y:%m:%d %H:%M:%S')
 
 
 if __name__ == "__main__":
