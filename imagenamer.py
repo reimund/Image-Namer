@@ -26,7 +26,9 @@ def main(argv=None):
 	parser.add_argument('-i', metavar='input dir', help='rename images in this directory.')
 	parser.add_argument('-s', metavar='string', help='the resulting files will have this prefix.')
 	parser.add_argument('-d', metavar='digits', help='the number of digits to use.')
-	parser.add_argument('-v', action='store_true', help='verbose output.')
+	parser.add_argument('-v', '--verbose', action='store_true', help='verbose output.')
+	parser.add_argument('--skip-xmp', action='store_true', help='don\'t rename xmp files.')
+	parser.add_argument('--keep-case', action='store_true', help='don\'t alter the case of the extension.')
 
 	args = vars(parser.parse_args())
 
@@ -39,7 +41,9 @@ class ImageNamer:
 	def __init__(self, args):
 		self.input_directory = '.' if args['i'] == None else args['i']
 		self.prefix = '' if args['s'] == None else args['s']
-		self.verbose = args['v']
+		self.verbose = args['verbose']
+		self.skip_xmp = args['skip_xmp']
+		self.keep_case = args['keep_case']
 		self.digits = 4 if args['d'] == None else args['d']
 		self.input_files = self.get_images(self.input_directory)
 
@@ -78,8 +82,30 @@ class ImageNamer:
 
 		for key, value in sorted(files.iteritems(), key=lambda (k,v): (v,k)):
 			name, ext = os.path.splitext(key)
-			padded = ('{0:0' + str(self.digits) + '}').format(i)
-			self.safe_rename(key, os.path.dirname(key) + '/' + self.prefix + padded + ext)
+
+			if self.keep_case:
+				dest_ext = ext
+			else:
+				dest_ext = ext.lower()
+
+			# The current filename.
+			src = key
+
+			# Padding.
+			padding = ('{0:0' + str(self.digits) + '}').format(i)
+
+			# The new filename.
+			dest = os.path.dirname(key) + '/' + self.prefix + padding
+
+			# Xmp path.
+			xmp = name + '.xmp'
+
+
+			self.safe_rename(src, dest + dest_ext)
+
+			if not self.skip_xmp and os.path.isfile(xmp):
+				self.safe_rename(xmp, dest + '.xmp')
+
 			i += 1
 
 
@@ -87,7 +113,7 @@ class ImageNamer:
 	# Does the actual renaming.
 	def safe_rename(self, src, dst):
 
-		if (src != dst and os.path.isfile(dst)):
+		if (src != dst and isfile_sensitive(dst)):
 			tmp = self.temp_file(os.path.dirname(dst))
 			self.collisions[dst] = tmp
 
@@ -114,7 +140,7 @@ class ImageNamer:
 	def temp_file(self, dir):
 		tmp = dir + '/' + self.rand_str(16)
 
-		if(os.path.isfile(tmp)):
+		if(isfile_sensitive(tmp)):
 			tmp = dir + '/' + self.rand_str(16)
 		
 		return tmp
@@ -146,6 +172,24 @@ class ImageNamer:
 					images.append(file)
 
 		return images
+	
+
+def isfile_sensitive(file):
+
+	if not os.path.isfile(file):
+		return False
+
+	isfile = False
+	filename = os.path.basename(file)
+	files = os.listdir(os.path.dirname(file))
+
+	for f in files:
+		
+		if filename == f:
+			isfile = True
+			break
+			
+	return isfile
 
 
 def exif_get_struct_time(file):
